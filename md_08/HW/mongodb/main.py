@@ -24,16 +24,15 @@
 Для команд name:st та tag:li використовуйте регулярні вирази в String queries
 '''
 
+from typing import Any
 from bson import ObjectId
 import json
-
 
 import redis
 from mongoengine import QuerySet
 from redis_lru import RedisLRU
 
 from connection import connect
-from command_parser import parse_args
 from models.models import  Authors, Quotes
 
 # caching with redis
@@ -60,7 +59,7 @@ def parse_args(input: str) -> dict[str, str]|None:
     return {'command': command, 'arguments': arguments}
 
 
-def print_quote(quotes: QuerySet) -> None:
+def print_quote(quotes: QuerySet|Any) -> None:
     for quote in quotes:
         author_name = quote.author.fullname
         print(f'''
@@ -77,7 +76,7 @@ def name_commad_handler(name: str) -> QuerySet|None:
     :param aguments: list of arguments
     :return: mangoengine Document class :meth objects: result
     '''
-    author = Authors.objects(fullname=name).first()
+    author = Authors.objects(fullname__istartswith=name).first()
     if not author:
         return None
     author_id: ObjectId = author.id
@@ -92,7 +91,7 @@ def tag_commad_handler(tag: str) -> QuerySet:
     :param tag: tag name
     :return: mangoengine Document class :meth objects: result
     '''
-    quotes = Quotes.objects(tags=tag).all()
+    quotes = Quotes.objects(tags__istartswith=tag).all()
     return quotes
 
 
@@ -141,6 +140,7 @@ def main():
             print_quote(quotes)
         else:
             print(f"No quotes found for command: '{command}' with argument(s): '{args}'.")
+      
             
 if __name__ == '__main__':
     main()
