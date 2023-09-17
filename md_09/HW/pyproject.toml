@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "scrapy-hw"
+version = "0.1.0"
+description = ""
+authors = ["takeRednotBlue <maxymklym1996@gmail.com>"]
+readme = "README.md"
+packages = [{include = "scrapy_hw"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+scrapy = "^2.10.1"
+requests = "^2.31.0"
+beautifulsoup4 = "^4.12.2"
+lxml = "^4.9.3"
+redis = "^5.0.0"
+mongoengine = "^0.27.0"
+redis-lru = "^0.1.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
