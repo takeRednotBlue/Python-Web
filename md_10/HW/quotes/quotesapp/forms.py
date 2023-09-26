@@ -3,7 +3,7 @@ from .models import Author, Tag, Quote
 
 
 class TagForm(ModelForm):
-    name = CharField(min_length=3, max_length=25)
+    name = CharField(min_length=3, max_length=25, required=True)
 
     class Meta:
         model = Tag
@@ -27,3 +27,6 @@ class QuoteForm(ModelForm):
     class Meta:
         model = Quote
         fields = ['quote']
+
+
+

@@ -1,4 +1,4 @@
-{% extends "quotesapp/base.html" %}
+{% extends "quotesapp/base.html" %} {% load sort_list %}
 
 {% block content %}
 <form method="POST" action="{% url 'quotesapp:quote_form' %}">
@@ -12,7 +12,7 @@
     <div style="padding: 10px">
         <label> Select author:
             <select name="author">
-                {% for author in authors %}
+                {% for author in authors|sort %}
                 <option value="{{author.fullname}}">{{author.fullname}}</option>
                 {% endfor %}
             </select>
@@ -21,7 +21,7 @@
     <div style="padding: 10px">
         <label> Select tags:
             <select name="tags" multiple="multiple">
-                {% for tag in tags %}
+                {% for tag in tags|sort %}
                 <option value="{{tag.name}}">{{tag.name}}</option>
                 {% endfor %}
             </select>
