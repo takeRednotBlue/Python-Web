@@ -4,6 +4,7 @@ import json
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
+from django.db.models import Count
 
 from .forms import AuthorForm, QuoteForm
 from .models import Quote, Author, Tag
@@ -13,6 +14,8 @@ from quotesapp.scraping.quotes_parser import QuotesParser, BASE_URL  # noqa
 # Create your views here.
 def main(request):
     # seed_db()
+    tags_with_count = Tag.objects.annotate(usage_count=Count('quote'))
+    top_10_tags = sorted(tags_with_count, key=lambda x: x.usage_count, reverse=True)[:10]
     quotes = Quote.objects.all()
     per_page = 10
     paginator = Paginator(list(quotes), per_page)
@@ -21,10 +24,12 @@ def main(request):
         page_obj = paginator.get_page(number='1')
     else:
         page_obj = paginator.get_page(page_number)
-    return render(request, 'quotesapp/quotes.html', {'page_obj': page_obj})
+    return render(request, 'quotesapp/quotes.html', {'page_obj': page_obj, 'top_tags': top_10_tags})
 
 
 def tag(request, tag_name):
+    tags_with_count = Tag.objects.annotate(usage_count=Count('quote'))
+    top_10_tags = sorted(tags_with_count, key=lambda x: x.usage_count, reverse=True)[:10]
     quotes = Quote.objects.filter(tags__name=tag_name)
     per_page = 10
     paginator = Paginator(list(quotes), per_page)
@@ -33,7 +38,7 @@ def tag(request, tag_name):
         page_obj = paginator.get_page(number='1')
     else:
         page_obj = paginator.get_page(page_number)
-    return render(request, 'quotesapp/quotes.html', {'page_obj': page_obj, 'tag': tag_name})
+    return render(request, 'quotesapp/quotes.html', {'page_obj': page_obj, 'tag': tag_name, 'top_tags': top_10_tags})
 
 
 def author_info(request, author_name):
@@ -76,6 +81,10 @@ def add_quote(request):
             return render(request, 'quotesapp/quote_form.html', {"tags": tags, "authors": authors, "form": form})
 
     return render(request, 'quotesapp/quote_form.html', {"tags": tags, "authors": authors, "form": QuoteForm()})
+
+
+def top_tags_chart(request):
+    tags_with_count = Tag.objects.annotate(usage_count=Count('quote'))
 
 
 def seed_db():
