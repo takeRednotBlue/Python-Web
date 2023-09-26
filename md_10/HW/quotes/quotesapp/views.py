@@ -1,9 +1,11 @@
 from datetime import datetime
 import json
 
+from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import render
+from django.shortcuts import render, redirect, get_object_or_404
 
+from .forms import AuthorForm
 from .models import Quote, Author, Tag
 from quotesapp.scraping.quotes_parser import QuotesParser, BASE_URL  # noqa
 
@@ -36,7 +38,20 @@ def tag(request, tag_name):
 
 def author_info(request, author_name):
     author = Author.objects.filter(fullname=author_name)[0]
-    return render(request, 'quotesapp/author.html', {'author': author})
+    return render(request, 'quotesapp/author_form.html', {'author': author})
+
+
+@login_required
+def add_author(request):
+    if request.method == 'POST':
+        form = AuthorForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect(to='quotesapp:main')
+        else:
+            return render(request, 'quotesapp/author_form.html', {"form": form})
+
+    return render(request, 'quotesapp/author_form.html', {"form": AuthorForm()})
 
 
 def seed_db():
