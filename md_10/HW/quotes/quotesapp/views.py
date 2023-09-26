@@ -1,21 +1,42 @@
 from datetime import datetime
 import json
 
+from django.core.paginator import Paginator
 from django.shortcuts import render
 
 from .models import Quote, Author, Tag
-from quotesapp.scraping.quotes_parser import QuotesParser, BASE_URL
+from quotesapp.scraping.quotes_parser import QuotesParser, BASE_URL  # noqa
 
 
 # Create your views here.
 def main(request):
     # seed_db()
     quotes = Quote.objects.all()
-    return render(request, 'quotesapp/quotes.html', {'quotes': quotes})
+    per_page = 10
+    paginator = Paginator(list(quotes), per_page)
+    page_number = request.GET.get('page')
+    if not page_number:
+        page_obj = paginator.get_page(number='1')
+    else:
+        page_obj = paginator.get_page(page_number)
+    return render(request, 'quotesapp/quotes.html', {'page_obj': page_obj})
 
 
-def tag(request):
-    pass
+def tag(request, tag_name):
+    quotes = Quote.objects.filter(tags__name=tag_name)
+    per_page = 10
+    paginator = Paginator(list(quotes), per_page)
+    page_number = request.GET.get('page')
+    if not page_number:
+        page_obj = paginator.get_page(number='1')
+    else:
+        page_obj = paginator.get_page(page_number)
+    return render(request, 'quotesapp/quotes.html', {'page_obj': page_obj, 'tag': tag_name})
+
+
+def author_info(request, author_name):
+    author = Author.objects.filter(fullname=author_name)[0]
+    return render(request, 'quotesapp/author.html', {'author': author})
 
 
 def seed_db():
