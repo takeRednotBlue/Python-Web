@@ -20,3 +20,10 @@ class AuthorForm(ModelForm):
         model = Author
         fields = ['fullname', 'born_date', 'born_location', 'description']
 
+
+class QuoteForm(ModelForm):
+    quote = CharField(min_length=10, max_length=255, widget=Textarea())
+
+    class Meta:
+        model = Quote
+        fields = ['quote']

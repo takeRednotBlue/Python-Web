@@ -5,7 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
 from django.shortcuts import render, redirect, get_object_or_404
 
-from .forms import AuthorForm
+from .forms import AuthorForm, QuoteForm
 from .models import Quote, Author, Tag
 from quotesapp.scraping.quotes_parser import QuotesParser, BASE_URL  # noqa
 
@@ -38,7 +38,7 @@ def tag(request, tag_name):
 
 def author_info(request, author_name):
     author = Author.objects.filter(fullname=author_name)[0]
-    return render(request, 'quotesapp/author_form.html', {'author': author})
+    return render(request, 'quotesapp/author.html', {'author': author})
 
 
 @login_required
@@ -52,6 +52,30 @@ def add_author(request):
             return render(request, 'quotesapp/author_form.html', {"form": form})
 
     return render(request, 'quotesapp/author_form.html', {"form": AuthorForm()})
+
+
+@login_required
+def add_quote(request):
+    tags = Tag.objects.all()
+    authors = Author.objects.all()
+
+    if request.method == 'POST':
+        form = QuoteForm(request.POST)
+        if form.is_valid():
+            new_quote = form.save(commit=False)
+            author = Author.objects.filter(fullname=request.POST.get('author'))[0]
+            new_quote.author = author
+            new_quote.save()
+
+            choice_tags = Tag.objects.filter(name__in=request.POST.getlist('tags'))
+            for tag in choice_tags.iterator():
+                new_quote.tags.add(tag)
+
+            return redirect(to='quotesapp:main')
+        else:
+            return render(request, 'quotesapp/quote_form.html', {"tags": tags, "authors": authors, "form": form})
+
+    return render(request, 'quotesapp/quote_form.html', {"tags": tags, "authors": authors, "form": QuoteForm()})
 
 
 def seed_db():
