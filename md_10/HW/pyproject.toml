@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "md-10"
+version = "0.1.0"
+description = ""
+authors = ["takeRednotBlue <maxymklym1996@gmail.com>"]
+readme = "README.md"
+packages = [{include = "md_10"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^4.2.5"
+psycopg2 = "^2.9.7"
+
+[tool.poetry.group.scrapping.dependencies]
+bs4 = "^0.0.1"
+requests = "^2.31.0"
+lxml = "^4.9.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

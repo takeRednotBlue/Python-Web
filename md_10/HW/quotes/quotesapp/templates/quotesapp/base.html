@@ -19,6 +19,9 @@
             <p>
                 {% if user.is_authenticated %}
                 <a>Welcome <b>{{ user.username }}!</b></a>
+                    {% if user.username == 'admin' %}
+                    <a href="{% url 'quotesapp:scrape' %}">Scrape data</a>
+                    {% endif %}
                 <a href="{% url 'quotesapp:quote_form' %}">Add quote</a>
                 <a href="{% url 'quotesapp:author_form' %}">Add author</a>
                 <a href="{% url 'users:logout' %}">Logout</a>

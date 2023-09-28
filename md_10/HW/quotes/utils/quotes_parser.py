@@ -1,41 +1,18 @@
-"""
-Виберіть бібліотеку BeautifulSoup або фреймворк Scrapy. Ви повинні виконати скрапінг сайту http://quotes.toscrape.com.
-Ваша мета отримати два файли: quotes.json, куди помістіть всю інформацію про цитати з усіх сторінок сайту та authors.
-json, де буде знаходитись інформація про авторів зазначених цитат. Структура файлів json повинна повністю збігатися з
-попереднього домашнього завдання. Виконайте раніше написані скрипти для завантаження json файлів у хмарну базу даних для
-отриманих файлів. Попередня домашня робота повинна коректно працювати з новою отриманою базою даних.
-
-Додаткове завдання.
-Використовуйте для скрапінгу фреймворк Scrapy. Запуск краулера повинен бути виконаний у вигляді єдиного скрипта main.py.
-"""
-
-from typing import Any
-
-# import redis
-# from redis_lru import RedisLRU
 import requests
 from bs4 import BeautifulSoup
 
 BASE_URL = 'https://quotes.toscrape.com'
 
-# client = redis.StrictRedis(host="localhost", port=6379, password=None)
-# cache = RedisLRU(client)
-
 
 class Spider:
-
-    def parse(self, *args, **kwargs) -> Any:
+    def parse(self, *args, **kwargs):
         raise NotImplementedError
 
 
 class AuthorsSpider(Spider):
 
     author_urls_list = []
-    def _get_author_urls(self, response) -> list[str]:
-        """
-        Parse author urls from the 'https://quotes.toscrape.com'
-        :return: list of author urls
-        """
+    def _get_author_urls(self, response):
         urls = []
         soup = BeautifulSoup(response.text, 'lxml')
         links = soup.select("div[class=quote] span a")
@@ -48,14 +25,16 @@ class AuthorsSpider(Spider):
                     urls.append(author_url)
         return urls
 
-    # @cache
-    def _get_author_info(self, url: str):
+    def _get_author_info(self, url):
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'lxml')
         fullname = soup.select("div[class=author-details] h3[class=author-title]")[0].text
         born_date = soup.select("div[class=author-details] span[class=author-born-date]")[0].text
         born_location = soup.select("div[class=author-details] span[class=author-born-location]")[0].text
         description = soup.select("div[class=author-description]")[0].text
+        # handles case when the author info fullname doesn't match that in quote info
+        if fullname.strip() == 'Alexandre Dumas-fils':
+            fullname = 'Alexandre Dumas fils'
         author_info = {
             "fullname": fullname.strip(),
             "born_date": born_date.strip(),
@@ -64,11 +43,7 @@ class AuthorsSpider(Spider):
         }
         return author_info
 
-    def parse(self, response) -> list[dict[str, str]]:
-        """
-        Parse authors info from the 'https://quotes.toscrape.com'
-        :return: list of author info dictionaries suitable for uploading to db
-        """
+    def parse(self, response):
         urls = self._get_author_urls(response)
         result = []
         for url in urls:
@@ -78,12 +53,7 @@ class AuthorsSpider(Spider):
 
 
 class QuotesSpider(Spider):
-    def parse(self, response) -> list[dict[str, str]]:
-        """
-        Parse quotes info from the 'https://quotes.toscrape.com'
-        :return: list of quote info dictionaries suitable for uploading to db
-        """
-
+    def parse(self, response):
         soup = BeautifulSoup(response.text, 'lxml')
 
         result = []
@@ -120,7 +90,7 @@ class QuotesParser:
             return False
         return True
 
-    def start_parse(self, url: str):
+    def parse(self, url: str):
         page = 1
         authors = []
         quotes = []
@@ -140,7 +110,7 @@ class QuotesParser:
                 authors_result = self.authors_spider.parse(response)
                 quotes += quotes_result
                 authors += authors_result
-                print(f'Parsed page {page}\n Number of qoutes: {len(quotes)}\n Number of authors: {len(authors)}')
+                # print(f'Parsed page {page}\n Number of qoutes: {len(quotes)}\n Number of authors: {len(authors)}')
             except Exception as err:
                 print(err, f'on page {page}')
                 page += 1
@@ -151,17 +121,3 @@ class QuotesParser:
             page += 1
 
         return quotes, authors
-
-
-if __name__ == '__main__':
-    parser = QuotesParser()
-    quotes, authors = parser.start_parse('https://quotes.toscrape.com')
-    authors_names_set = set()
-    for author in authors:
-        authors_names_set.add(author["fullname"])
-    print(f'Number of authors {len(authors_names_set)}')
-    print('Amount of scraped quotes {}\nAmount of scraped authors {}'.format(len(quotes), len(authors)))
-    # import json
-    # with open('quotes.json', 'w') as quotes_file, open('authors.json', 'w') as authors_file:
-    #     json.dump(quotes, quotes_file, indent=4)
-    #     json.dump(authors, authors_file, indent=4)

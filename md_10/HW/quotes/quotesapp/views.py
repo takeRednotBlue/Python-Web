@@ -1,22 +1,18 @@
-from datetime import datetime
-import json
-
+from django.db.models import Count
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db.models import Count
+from django.shortcuts import render, redirect
 
 from .forms import AuthorForm, QuoteForm
 from .models import Quote, Author, Tag
-from quotesapp.scraping.quotes_parser import QuotesParser, BASE_URL  # noqa
+from utils import scrape_quotes_to_db  # noqa
 
 
 # Create your views here.
 def main(request):
-    # seed_db()
-    tags_with_count = Tag.objects.annotate(usage_count=Count('quote'))
+    tags_with_count = Tag.objects.annotate(usage_count=Count('quote')) # noqa
     top_10_tags = sorted(tags_with_count, key=lambda x: x.usage_count, reverse=True)[:10]
-    quotes = Quote.objects.all()
+    quotes = Quote.objects.all() # noqa
     per_page = 10
     paginator = Paginator(list(quotes), per_page)
     page_number = request.GET.get('page')
@@ -28,9 +24,9 @@ def main(request):
 
 
 def tag(request, tag_name):
-    tags_with_count = Tag.objects.annotate(usage_count=Count('quote'))
+    tags_with_count = Tag.objects.annotate(usage_count=Count('quote')) # noqa
     top_10_tags = sorted(tags_with_count, key=lambda x: x.usage_count, reverse=True)[:10]
-    quotes = Quote.objects.filter(tags__name=tag_name)
+    quotes = Quote.objects.filter(tags__name=tag_name) # noqa
     per_page = 10
     paginator = Paginator(list(quotes), per_page)
     page_number = request.GET.get('page')
@@ -42,7 +38,7 @@ def tag(request, tag_name):
 
 
 def author_info(request, author_name):
-    author = Author.objects.filter(fullname=author_name)[0]
+    author = Author.objects.filter(fullname=author_name)[0] # noqa
     return render(request, 'quotesapp/author.html', {'author': author})
 
 
@@ -61,8 +57,8 @@ def add_author(request):
 
 @login_required
 def add_quote(request):
-    tags = Tag.objects.all()
-    authors = Author.objects.all()
+    tags = Tag.objects.all() # noqa
+    authors = Author.objects.all() # noqa
 
     if request.method == 'POST':
         form = QuoteForm(request.POST)
@@ -83,50 +79,11 @@ def add_quote(request):
     return render(request, 'quotesapp/quote_form.html', {"tags": tags, "authors": authors, "form": QuoteForm()})
 
 
-def top_tags_chart(request):
-    tags_with_count = Tag.objects.annotate(usage_count=Count('quote'))
+def scrape_quotes(request):
+    scrape_quotes_to_db()
+    return redirect(to='quotesapp:main')
 
 
-def seed_db():
-    # parser = QuotesParser()
-    # quotes, authors = parser.start_parse(BASE_URL)
-    # with open('quotes.json', 'w') as quotes_file, open('authors.json', 'w') as authors_file:
-    #     json.dump(quotes, quotes_file, indent=4)
-    #     json.dump(authors, authors_file, indent=4)
-    with open('quotes.json', 'r+') as quotes_file, open('authors.json', 'r+') as authors_file:
-        quotes = json.load(quotes_file)
-        authors = json.load(authors_file)
-    for author in authors:
-        print(author['fullname'])
-        author['born_date'] = datetime.strptime(author['born_date'], '%B %d, %Y')
-        author = Author(**author)
-        author.save()
-
-    tags_set = set()
-    for quote in quotes:
-        for item in quote['tags']:
-            tags_set.add(item)
-
-    for item in tags_set:
-        tag = Tag(name=item)
-        tag.save()
-
-    for quote in quotes:
-        text = quote['quote']
-        # print(repr(quote['author']))
-        author = Author.objects.filter(fullname=quote['author']).all()[0]
-        new_quote = Quote(
-            quote=text,
-            author=author,
-        )
-        new_quote.save()
-        choice_tags = Tag.objects.filter(name__in=quote['tags'])
-        for tag in choice_tags.iterator():
-            new_quote.tags.add(tag)
-
-
-if __name__ == '__main__':
-    seed_db()
 
 
 
