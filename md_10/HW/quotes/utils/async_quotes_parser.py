@@ -1,5 +1,6 @@
 import requests
 import aiohttp
+import asyncio
 
 from bs4 import BeautifulSoup
 from concurrent import futures
@@ -13,11 +14,14 @@ class Spider:
 
 
 class AuthorsSpider(Spider):
-
     author_urls_list = []
-    def _get_author_urls(self, response):
+
+    def __init__(self, session=None):
+        self.session = session
+
+    def _get_author_urls(self, html):
         urls = []
-        soup = BeautifulSoup(response.text, 'lxml')
+        soup = BeautifulSoup(html, 'lxml')
         links = soup.select("div[class=quote] span a")
         prefix = '/author'
         for link in links:
@@ -28,9 +32,8 @@ class AuthorsSpider(Spider):
                     urls.append(author_url)
         return urls
 
-    def _get_author_info(self, url):
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'lxml')
+    def _get_author_info(self, html):
+        soup = BeautifulSoup(html, 'lxml')
         fullname = soup.select("div[class=author-details] h3[class=author-title]")[0].text
         born_date = soup.select("div[class=author-details] span[class=author-born-date]")[0].text
         born_location = soup.select("div[class=author-details] span[class=author-born-location]")[0].text
@@ -45,19 +48,33 @@ class AuthorsSpider(Spider):
             "description": description.strip()
         }
         return author_info
+    async def aparse_author_info(self, url_list):
+        result = []
+        for url in url_list:
+            async with self.session.get(url) as response:
+                html = await response.text()
+                author_info = self._get_author_info(html)
+                print(author_info)
+                result.append(author_info)
 
-    def parse(self, response):
+        print(result)
+        return result
+
+    async def parse(self, response):
         urls = self._get_author_urls(response)
         result = []
         for url in urls:
-            author_info = self._get_author_info(url)
-            result.append(author_info)
+            async with self.session.get(url) as response:
+                html = await response.text()
+                author_info = self._get_author_info(html)
+                # print(author_info)
+                result.append(author_info)
         return result
 
 
 class QuotesSpider(Spider):
-    def parse(self, response):
-        soup = BeautifulSoup(response.text, 'lxml')
+    def parse(self, html):
+        soup = BeautifulSoup(html, 'lxml')
 
         result = []
         quote_blocks = soup.select('div[class=quote]')
@@ -85,44 +102,45 @@ class QuotesParser:
         self.authors_spider = authors_spider
 
     @staticmethod
-    def _has_next_page(response):
-        html = response.text
+    def _has_next_page(html):
         soup = BeautifulSoup(html, 'lxml')
         next_page_tag = soup.select('li[class="next"]')
         if not next_page_tag:
             return False
         return True
 
-    def parse(self, url: str):
+    async def aparse(self, url: str):
         page = 1
         authors = []
         quotes = []
-        while True:
-            if page == 1:
-                page_url = url
-            else:
-                page_url = url + f'/page/{page}/'
-            response = requests.get(page_url)
+        async with aiohttp.ClientSession() as session:
+            while True:
+                if page == 1:
+                    page_url = url
+                else:
+                    page_url = url + f'/page/{page}/'
+                async with session.get(page_url) as response:
+                    if response.status >= 400:
+                        print('Error while fetching page, status: {}'.format(response.status))
+                        continue
 
-            if response.status_code != 200:
-                print('Error while fetching page, status: {}'.format(response.status_code))
-                continue
+                    html = await response.text()
+                    try:
+                        self.authors_spider.session = session
+                        authors_result = await self.authors_spider.parse(html)
+                        quotes_result = self.quotes_spider.parse(html)
+                        quotes += quotes_result
+                        authors += authors_result
+                        print(f'Parsed page {page}\n Number of qoutes: {len(quotes_result)}\n Number of authors: {len(authors_result)}')
+                    except Exception as err:
+                        print(err, f'on page {page}')
+                        page += 1
+                        continue
 
-            try:
-                quotes_result = self.quotes_spider.parse(response)
-                authors_result = self.authors_spider.parse(response)
-                quotes += quotes_result
-                authors += authors_result
-                # print(f'Parsed page {page}\n Number of qoutes: {len(quotes)}\n Number of authors: {len(authors)}')
-            except Exception as err:
-                print(err, f'on page {page}')
-                page += 1
-                continue
-
-            if not self._has_next_page(response):
-                break
-            page += 1
-
+                    if not self._has_next_page(html):
+                        break
+                    page += 1
+        print(f"Number of authors - '{len(authors)}, Number of quotes - '{len(quotes)}")
         return quotes, authors
 
     def _parse_page(self, page_url):
@@ -142,26 +160,24 @@ Number of authors: {len(authors_result)}")
 
         return quotes_result, authors_result
 
-    def parse_in_threads(self, url: str):
-        authors = []
-        quotes = []
-        urls = [url + f'/page/{page_num}/' for page_num in range(1, 11)]
-        with futures.ThreadPoolExecutor() as executor:
-            result: list = list(executor.map(self._parse_page, urls))
 
-        for item in result:
-            quotes.extend(item[0])
-            authors.extend(item[1])
-        print(f"Number of authors - '{len(authors)}, Number of quotes - '{len(quotes)}")
-
-        return quotes, authors
+    async def aparse_test(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get(privat_ccy_api_by_date('01.12.2022')) as response:
+                print('Status: ', response.status)
+                print('Content-type: ', response.headers['content-type'])
+                print('Cookies: ', response.cookies)
+                print(response.ok)
+                result = await response.json()
+                exchange = list(filter(lambda x: x['currency'] in ['USD', 'EUR'], result['exchangeRate']))
+                return exchange
 
 
 if __name__ == '__main__':
     import datetime
     parser = QuotesParser()
     start_time = datetime.datetime.now()
-    parser.parse_in_threads(BASE_URL)
+    asyncio.run(parser.aparse(BASE_URL))
     end_time = datetime.datetime.now() - start_time
     print(f'Finished in {end_time.seconds} seconds.')
 

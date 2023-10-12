@@ -10,15 +10,18 @@ packages = [{include = "md_10"}]
 python = "^3.11"
 django = "^4.2.5"
 psycopg2 = "^2.9.7"
+pillow = "^10.0.1"
+
 
 [tool.poetry.group.scrapping.dependencies]
 bs4 = "^0.0.1"
 requests = "^2.31.0"
+redis-lru = "^0.1.2"
+redis = "^5.0.0"
+
+
+[tool.poetry.group.parsing.dependencies]
 lxml = "^4.9.3"
-
-
-[tool.poetry.group.dev.dependencies]
-aiohttp = "^3.8.5"
 
 [build-system]
 requires = ["poetry-core"]

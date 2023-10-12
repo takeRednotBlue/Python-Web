@@ -11,7 +11,7 @@ django.setup()
 
 
 def scrape_quotes_to_db(parser=QuotesParser()):
-    quotes, authors = parser.parse(BASE_URL)
+    quotes, authors = parser.parse_in_threads(BASE_URL)
     # with open('quotes.json', 'w') as quotes_file, open('authors.json', 'w') as authors_file:
     #     json.dump(quotes, quotes_file, indent=4)
     #     json.dump(authors, authors_file, indent=4)
