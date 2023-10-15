@@ -18,6 +18,7 @@ class User(Base):
     created_at: Mapped[datetime] = mapped_column('crated_at', default=func.now())
     avatar: Mapped[str] = mapped_column(String(255), nullable=True)
     refresh_token: Mapped[str] = mapped_column(String(255), nullable=True)
+    confirmed: Mapped[bool] = mapped_column(default=False)
 
 
 class Contact(Base):
