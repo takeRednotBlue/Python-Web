@@ -1,167 +1,94 @@
-import requests
 import aiohttp
-
+import asyncio
+import json
 from bs4 import BeautifulSoup
-from concurrent import futures
 
-BASE_URL = 'https://quotes.toscrape.com'
-
-
-class Spider:
-    def parse(self, *args, **kwargs):
-        raise NotImplementedError
+BASE_URL = "http://quotes.toscrape.com"
 
 
-class AuthorsSpider(Spider):
-
-    author_urls_list = []
-    def _get_author_urls(self, response):
-        urls = []
-        soup = BeautifulSoup(response.text, 'lxml')
-        links = soup.select("div[class=quote] span a")
-        prefix = '/author'
-        for link in links:
-            if link['href'].startswith(prefix):
-                author_url = BASE_URL + link['href']
-                if author_url not in self.author_urls_list:
-                    self.author_urls_list.append(author_url)
-                    urls.append(author_url)
-        return urls
-
-    def _get_author_info(self, url):
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'lxml')
-        fullname = soup.select("div[class=author-details] h3[class=author-title]")[0].text
-        born_date = soup.select("div[class=author-details] span[class=author-born-date]")[0].text
-        born_location = soup.select("div[class=author-details] span[class=author-born-location]")[0].text
-        description = soup.select("div[class=author-description]")[0].text
-        # handles case when the author info fullname doesn't match that in quote info
-        if fullname.strip() == 'Alexandre Dumas-fils':
-            fullname = 'Alexandre Dumas fils'
-        author_info = {
-            "fullname": fullname.strip(),
-            "born_date": born_date.strip(),
-            "born_location": born_location.strip(),
-            "description": description.strip()
-        }
-        return author_info
-
-    def parse(self, response):
-        urls = self._get_author_urls(response)
-        result = []
-        for url in urls:
-            author_info = self._get_author_info(url)
-            result.append(author_info)
-        return result
+async def fetch_quote(session, url):
+    async with session.get(url) as response:
+        return await response.text()
 
 
-class QuotesSpider(Spider):
-    def parse(self, response):
-        soup = BeautifulSoup(response.text, 'lxml')
+async def scrape_page(session, page_url, quotes, authors):
+    page_html = await fetch_quote(session, page_url)
+    soup = BeautifulSoup(page_html, 'html.parser')
 
-        result = []
-        quote_blocks = soup.select('div[class=quote]')
-        quote_selector = 'span[class=text]'
-        author_selector = 'span small[class=author]'
-        tags_selector = 'div[class=tags] a'
-        for quote in quote_blocks:
-            quote_text = quote.select(quote_selector)[0].text
-            quote_author = quote.select(author_selector)[0].text
-            quote_tags = quote.select(tags_selector)
-            tags: list[str] = []
-            for tag in quote_tags:
-                tags.append(tag.text.strip())
-            result.append({
-                'tags': tags,
-                'author': quote_author.strip(),
-                'quote': quote_text.strip('\u201c').strip('\u201d'),
-            })
-        return result
+    for quote in soup.find_all('div', class_='quote'):
+        quote_text = quote.find('span', class_='text').text
+        author_name = quote.find('small', class_='author').text
+        quote_tags = quote.select('div[class=tags] a')
+        tags: list[str] = []
+        for tag in quote_tags:
+            tags.append(tag.text.strip())
+        author_url = BASE_URL + quote.find('a')['href']
+
+        quotes.append({
+            'quote': quote_text.strip('\u201c').strip('\u201d'),
+            'author': author_name,
+            'tags': tags
+        })
+        authors.add(author_url)
 
 
-class QuotesParser:
-    def __init__(self, quotes_spider=QuotesSpider(), authors_spider=AuthorsSpider()):
-        self.quotes_spider = quotes_spider
-        self.authors_spider = authors_spider
+async def scrape_author(session, author_url, author_info):
+    author_html = await fetch_quote(session, author_url)
+    soup = BeautifulSoup(author_html, 'html.parser')
 
-    @staticmethod
-    def _has_next_page(response):
-        html = response.text
-        soup = BeautifulSoup(html, 'lxml')
-        next_page_tag = soup.select('li[class="next"]')
-        if not next_page_tag:
-            return False
-        return True
+    author_name = soup.find('h3', class_='author-title').text
+    author_born_date = soup.find('span', class_='author-born-date').text
+    author_description = soup.find(
+        'div', class_='author-description').text.strip()
+    author_born_location = soup.find(
+        'span', class_='author-born-location').text.strip()
+    if author_name.strip() == 'Alexandre Dumas-fils':
+        author_name = 'Alexandre Dumas fils'
+    author_info.append({
+        'fullname': author_name,
+        'born_date': author_born_date,
+        'born_location': author_born_location,
+        'description': author_description,
+    })
 
-    def parse(self, url: str):
-        page = 1
-        authors = []
-        quotes = []
+
+async def scrape_quotes_with_pagination():
+    quotes = []
+    authors = set()
+    author_info = []
+
+    async with aiohttp.ClientSession() as session:
+        page_num = 1
         while True:
-            if page == 1:
-                page_url = url
-            else:
-                page_url = url + f'/page/{page}/'
-            response = requests.get(page_url)
+            page_url = f"{BASE_URL}/page/{page_num}/"
+            page_html = await fetch_quote(session, page_url)
+            soup = BeautifulSoup(page_html, 'html.parser')
 
-            if response.status_code != 200:
-                print('Error while fetching page, status: {}'.format(response.status_code))
-                continue
-
-            try:
-                quotes_result = self.quotes_spider.parse(response)
-                authors_result = self.authors_spider.parse(response)
-                quotes += quotes_result
-                authors += authors_result
-                # print(f'Parsed page {page}\n Number of qoutes: {len(quotes)}\n Number of authors: {len(authors)}')
-            except Exception as err:
-                print(err, f'on page {page}')
-                page += 1
-                continue
-
-            if not self._has_next_page(response):
+            if "No quotes found!" in soup.text:
                 break
-            page += 1
 
-        return quotes, authors
+            await scrape_page(session, page_url, quotes, authors)
+            page_num += 1
 
-    def _parse_page(self, page_url):
-        response = requests.get(page_url)
+        scrape_tasks = []
+        for author_url in authors:
+            scrape_tasks.append(scrape_author(
+                session, author_url, author_info))
 
-        if response.status_code != 200:
-            print('Error while fetching page, status: {}'.format(response.status_code))
+        await asyncio.gather(*scrape_tasks)
 
-        try:
-            quotes_result = self.quotes_spider.parse(response)
-            authors_result = self.authors_spider.parse(response)
-            print(f"Parsed '{page_url}'\n Number of quotes: {len(quotes_result)}\n\
-Number of authors: {len(authors_result)}")
-        except Exception as err:
-            print(err, f'on url {page_url}')
-            return None, None
+    return quotes, author_info
 
-        return quotes_result, authors_result
+    # with open('quotes.json', 'w') as quotes_file:
+    #     json.dump(quotes, quotes_file, indent=4)
 
-    def parse_in_threads(self, url: str):
-        authors = []
-        quotes = []
-        urls = [url + f'/page/{page_num}/' for page_num in range(1, 11)]
-        with futures.ThreadPoolExecutor() as executor:
-            result: list = list(executor.map(self._parse_page, urls))
-
-        for item in result:
-            quotes.extend(item[0])
-            authors.extend(item[1])
-        print(f"Number of authors - '{len(authors)}, Number of quotes - '{len(quotes)}")
-
-        return quotes, authors
+    # with open('authors.json', 'w') as authors_file:
+    #     json.dump(author_info, authors_file, indent=4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import datetime
-    parser = QuotesParser()
     start_time = datetime.datetime.now()
-    parser.parse_in_threads(BASE_URL)
+    asyncio.run(scrape_quotes_with_pagination())
     end_time = datetime.datetime.now() - start_time
     print(f'Finished in {end_time.seconds} seconds.')
-

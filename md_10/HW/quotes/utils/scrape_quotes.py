@@ -1,17 +1,18 @@
 import os
-import json
+import asyncio
+# import json
 from datetime import datetime
 import django
 
-from utils.quotes_parser import QuotesParser, BASE_URL # noqa
-from quotesapp.models import Quote, Tag, Author # noqa
+from utils.quotes_parser import scrape_quotes_with_pagination, BASE_URL  # noqa
+from quotesapp.models import Quote, Tag, Author  # noqa
 
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'quotes.settings')
 django.setup()
 
 
-def scrape_quotes_to_db(parser=QuotesParser()):
-    quotes, authors = parser.parse_in_threads(BASE_URL)
+def scrape_quotes_to_db(scraper=scrape_quotes_with_pagination):
+    quotes, authors = asyncio.run(scraper())
     # with open('quotes.json', 'w') as quotes_file, open('authors.json', 'w') as authors_file:
     #     json.dump(quotes, quotes_file, indent=4)
     #     json.dump(authors, authors_file, indent=4)
@@ -20,7 +21,8 @@ def scrape_quotes_to_db(parser=QuotesParser()):
     #     authors = json.load(authors_file)
 
     for author in authors:
-        author['born_date'] = datetime.strptime(author['born_date'], '%B %d, %Y').date()
+        author['born_date'] = datetime.strptime(
+            author['born_date'], '%B %d, %Y').date()
         Author.objects.get_or_create(**author)
 
     for quote in quotes:
