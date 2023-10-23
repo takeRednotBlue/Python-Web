@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 
+from conf.config import settings
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -77,12 +79,12 @@ WSGI_APPLICATION = 'quotes.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'postgres',
-        'USER': 'postgres',
-        'PASSWORD': '789456',
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+        'ENGINE': settings.db_engine,
+        'NAME': settings.db_name,
+        'USER': settings.db_user,
+        'PASSWORD': settings.db_password,
+        'HOST': settings.db_host,
+        'PORT': settings.db_port,
     }
 }
 
@@ -133,12 +135,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Secrets and other constants
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.meta.ua'
-EMAIL_PORT = 465
-EMAIL_STARTTLS = False
-EMAIL_USE_SSL = True
-EMAIL_USE_TLS = False
-EMAIL_HOST_USER = 'python.developer@meta.ua'
-EMAIL_HOST_PASSWORD = '!MetaEmail'
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+EMAIL_BACKEND = settings.email_backend
+EMAIL_HOST = settings.email_host
+EMAIL_PORT = settings.email_port
+EMAIL_STARTTLS = settings.email_starttls
+EMAIL_USE_SSL = settings.email_use_ssl
+EMAIL_USE_TLS = settings.email_use_tls
+EMAIL_HOST_USER = settings.email_host_user
+EMAIL_HOST_PASSWORD = settings.email_host_password
+DEFAULT_FROM_EMAIL = settings.default_from_email
