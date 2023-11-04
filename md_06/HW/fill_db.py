@@ -113,11 +113,11 @@ def prepare_data_scores(min_score: int, max_score: int) -> list[tuple]:
 def populate_db(db: str) -> None:
     students_names, lecturers_names = generate_fake_data(NUMBER_STUDENTS, NUMBER_LECTURERS)
     data = {
-    'students': prepare_data_students(students_names),
-    'lecturers': prepare_data_lecturers(lecturers_names),
-    'groups': prepare_data_groups(GROUPS),
-    'subjects': prepare_data_subjects(CS_SUBJECTS),
-    'scores': prepare_data_scores(MIN_SCORE, MAX_SCORE),
+        'students': prepare_data_students(students_names),
+        'lecturers': prepare_data_lecturers(lecturers_names),
+        'groups': prepare_data_groups(GROUPS),
+        'subjects': prepare_data_subjects(CS_SUBJECTS),
+        'scores': prepare_data_scores(MIN_SCORE, MAX_SCORE),
     }
     with sqlite3.connect(db) as conn:
         cur = conn.cursor()

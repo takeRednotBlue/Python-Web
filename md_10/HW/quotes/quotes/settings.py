@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-sv(0=*jy(u3-6p*@a-b=kkvf)20jxu-b36tm$f2j0t5t26y1d$'
+SECRET_KEY = settings.secret_key
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -79,7 +79,8 @@ WSGI_APPLICATION = 'quotes.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': settings.db_engine,
+        # 'ENGINE': settings.db_engine,
+        'ENGINE': os.environ.get("DB_ENGINE"),
         'NAME': settings.db_name,
         'USER': settings.db_user,
         'PASSWORD': settings.db_password,
